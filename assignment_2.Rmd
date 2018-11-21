@@ -1,0 +1,226 @@
+---
+title: "Predicting Exercise Quality Using Machine Learning"
+author: "Jordan Sands"
+date: "20 November 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Splitting
+
+```{r message=F, warning=F}
+library(dplyr)
+library(caret)
+```
+
+Let's begin by splitting the data in to training, testing and validation sets.
+They will be split on the `classe` variable 60%, 20%, 20% respectively.
+```{r read-and-split}
+training_data <- read.csv('pml-training.csv',stringsAsFactors = FALSE)
+
+
+#create a 60% training 20% testing and  20% validation split
+set.seed(48375)
+inTrain <- createDataPartition(y=training_data$classe,p=0.6,list=F)
+
+training <- training_data[inTrain,]
+testing_and_validation <- training_data[-inTrain,]
+
+inTest <- createDataPartition(y=testing_and_validation$classe,p=0.5,list=F)
+testing <- testing_and_validation[inTest,]
+validation <- testing_and_validation[-inTest,]
+```
+
+## Cleaning
+Taking a look at the training data we can see that some variables are coded as
+string when they should really be numeric or integers. We can also see a lot of
+missing data, (NAs). See the appendix for the output of the following chunk.
+```{r preProcess, results='hide'}
+str(training)
+```
+
+
+
+Now the data will be cleaned; variables classes are converted and some variables
+are dropped. These are  `raw_timestamp_part_1`, `raw_timestamp_part_2`, 
+`cvtd_timestamp`, `user_name`, `X,new_window` and `num_window`. These variables
+contain only meta-data and as such are excluded from the analysis. The data 
+will be pre-processed in a function so that test and validation can be treated
+the same way.
+```{r}
+pre_process_1 <- function(DF) {
+    char_cols <- which(sapply(DF,is.character))
+    num_char_cols <- length(char_cols)
+    change_to_numeric <- char_cols[4:(num_char_cols-1)]
+    
+    DF[,change_to_numeric] <- lapply(DF[change_to_numeric],as.numeric)
+    #ignore warnings
+    
+    DF$classe <- DF$classe %>% as.factor
+    DF$new_window <- DF$new_window %>% as.factor
+    
+    ###drop data
+    DF <- select(DF,-c(raw_timestamp_part_1,raw_timestamp_part_2,cvtd_timestamp,user_name,X,new_window,num_window))
+    DF
+}
+```
+
+Running the above code, passing it the `training` data frame.
+```{r, warning=FALSE}
+training <- pre_process_1(training)
+```
+
+Some variables have many NA values, this is explored here
+```{r}
+na_counts <- sapply(training,function(col){mean(is.na(col))})
+print(head(na_counts,20))
+```
+
+It seems a lot of columns in the data are missing a lot of values, let's filter
+out all of the columns missing values in more than 90% of observations.
+
+```{r}
+more_than_90_perc_missing <- which(na_counts > 0.9)
+
+training_refined <- training[,-more_than_90_perc_missing]
+dim(training_refined)
+```
+After dropping variables that are missing values in more than 90 percent
+of observations we can see there are `r dim(training_refined)[2]-1` 
+variables left, as well as the `classe` variable.
+
+## Exploration
+let's explore the relationship between the remaining `r dim(training_refined)[2]-1` variables
+and `classe`. Below is a script to produce plots for the first 3 variables `r names(training_refined)[1:3]`
+```{r explore}
+for(i in 1:3) {
+    varname <-  names(training_refined)[i]
+    gg <- ggplot(training_refined,aes_string(x='classe',y=varname)) + 
+        geom_jitter(aes(col=classe)) + ggtitle(paste(varname,'accross classe'))
+    print(gg)
+}
+```
+
+It seems, at least from these first three plots, that each metric clusters around
+particular values accross all of the `classe` values. This is unhelpful. There is
+also a phenomenon however, whereby particular `classe` values are ascociated with
+a greater/smaller spread of the data around these particular values. This could
+be exploited by our model.
+
+
+With only `r dim(training_refined)[2]-1` variables, the choice was made to 
+select predictors by eye, below the data is further refined to include only 
+these variables and the `classe` variable.
+```{r variables}
+useful_vars <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,16,17,19,21,22,23,24,27,28,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,48,49,50,51,52)
+names(training_refined)[useful_vars]
+training_refined_2 <- select(training_refined,c(useful_vars,classe))
+```
+This leaves us with `r dim(training_refined_2)[2]-1` predictors.
+
+Now a second pre processing function that takes `training` and produces 
+`training_refined_2` is created. This is important so that we can process the
+test and validation data the same way we processsed the training data.
+```{r preproc_2}
+pre_process_2 <- function(DF) {
+    select(DF[,-more_than_90_perc_missing],c(useful_vars,classe))
+}
+
+all(training_refined_2==pre_process_2(training))
+```
+
+## Training
+Now we train models, from the above plots it would appear that the data don't 
+follow any identifiable common distribution, so model based approaches are not favourable. 
+It also seems the data do not have a linear effect on `classe`. Methods cutting 
+the `r dim(training_refined_2)[2]-1` dimensional space of variables might prove 
+fruitful, since there are some variables that can predict classes if their value
+is over/under a certain threshold. See the figure below for a demonstration of 
+this idea.
+
+```{r example-plot,echo=F}
+    gg <- ggplot(training_refined,aes_string(x='classe',y='yaw_belt')) + 
+        geom_jitter(aes(col=classe)) +
+        ggtitle(paste('yaw_belt','accross classe')) + 
+        geom_hline(yintercept = 10,col='black',lwd=3) +
+        geom_hline(yintercept = 150,col='black',lwd=3) + 
+        annotate(geom='text',x=3,y=80,cex=15,label='Classify as "E"')
+    
+    print(gg)
+```
+
+
+
+Three methods were chosen, random forrests, k nearest neighbours (knn) and 
+classification trees. 
+
+For the knn model, data are first centred and scaled so 
+as to not favour dimensions/variables based on their scale. The optimal `k` value
+is searched for between 1 and 3 by specifying the `tuneGrid` argument.
+```{r train-knn}
+mod_knn <- train(classe ~ . ,data=training_refined_2,method='knn',tuneGrid=data.frame(k=1:3))
+```
+
+For the classification tree the `rpart` package is used, the complexity parameter, 
+`cp` must be tuned to optimise the complexity of the resulting tree.
+```{r train-rpart}
+mod_rpart <- train(classe ~ . ,data=training_refined_2,method='rpart',tuneGrid=data.frame(cp=seq(0.00000001,0.0001,0.00001)),trControl=trainControl(method='cv',number=25))
+```
+
+Finally a random forrest is fit, the optimal tuning parameter `mtry` is found
+by default in this case, without need to pass `train` a `tuneGrid` argument.
+```{r train-rf}
+mod_rf <- train(classe ~ . ,data=training_refined_2,method='rf')
+```
+
+
+## Testing
+Each model is now tested on the `testing` data set to estimate the out of sample
+error. The best performer will be selected as the final solution.
+```{r compare-to-test , message=F, warning=F}
+modList <- list(mod_knn=mod_knn,mod_rpart=mod_rpart,mod_rf=mod_rf)
+
+testing <- testing %>% pre_process_1 %>% pre_process_2
+
+
+predictions <- lapply(modList,function(mod) {predict(mod,testing)})
+conf_mats <- lapply(predictions,function(pred) {confusionMatrix(pred,testing$classe)})
+
+print(conf_mats$mod_knn)
+print(conf_mats$mod_rpart)
+print(conf_mats$mod_rf)
+```
+It can be seen that `mod_rf` outperfomed the other models, this will be the 
+resulting solution to the problem.
+
+## Validation
+Because the error on the test set decided our choice of model, we have effectively
+trained our model on the testing dataset. Finally `mod_rf` is run on `validation` to accurately
+estimate out of sample error.
+```{r validation ,message=F, warning=F}
+validation <- validation %>% pre_process_1 %>% pre_process_2
+confusionMatrix(predict(mod_rf,validation),validation$classe)
+```
+
+```{r ,echo=FALSE}
+conf_mat <- confusionMatrix(predict(mod_rf,validation),validation$classe)
+
+lower <- round(conf_mat$overall[3]*100,2)
+names(lower) <- NULL
+lower <- paste0(lower,'%')
+
+upper <- round(conf_mat$overall[4]*100,2)
+names(upper) <- NULL
+upper <- paste0(upper,'%')
+```
+Accuracy is estimated to be between `r lower` and `r upper` with 95% confidence.
+This is an acceptable solution.
+
+## Appendix
+
+```{r appendix-preProcess}
+str(training)
+```
