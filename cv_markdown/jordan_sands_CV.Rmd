@@ -1,0 +1,89 @@
+---
+title: "Jordan Sands BSc."
+subtitle: "Curriculum Vitae"
+#output: 
+#    pdf_document:
+#        latex_engine: xelatex
+#sansfont: Cantarell
+output: pdf_document
+#font-import: http://fonts.googleapis.com/css?family=R#isque
+#font-family: 'Risque'
+
+
+urlcolor: blue
+---
+
+
+# About
+Jordan Sands is a data science enthusiast.
+He has worked at one of Melbourne's most prestigious research hospitals. He also does some projects in his own time, see [www.jordansands.net](http://jordansands.net) for more information.
+
+# Skills
+- Machine Learning
+- Data Analysis
+- Data Visualisation
+- Communication
+- Languages:
+    - R
+    - Python
+    - C
+    - Shell scripting
+    - Haskell
+
+# Education
+
+## Formal Education
+- Bachelor of Science, The University of Melbourne 2014 - 2016
+    - First class honours average of 82.125
+    - Majored in Mathematics and Statistics specialising in Operations Research
+    - Main Areas of study:
+        - Computer Science
+        - Mathematics
+        - Statistics
+    - Other Areas of Study:
+        - Economics
+        - Finance
+        - Actuarial Studies
+        - Physics
+- Master of Science (Mathematics and Statistics) 2017 - 2018 **(withdrawn)**
+
+## Informal Education
+
+Jordan has also completed online courses related to data science. 
+
+
+# Work Experience
+
+Lab Technician, (Data/Computing) - The Peter MacCallum Cancer Centre, Dec 2015 - Jan 2017
+
+* Data Wrangling
+* Software Testing
+* Mathematical Modelling
+* Worked on a Compute Cluster
+* R, Python and shell scripting
+
+Network Planner - Biarri Networks, Dec 2017, two week contract
+
+* Worked on optimising Telecommunication Networks
+* Used QGIS mapping software
+* Worked as part of a team
+
+Vacation Scholar - The University of Melbourne, 2015
+
+* Bushfire arson dataset
+* Data Wrangling/Cleaning
+* QGIS
+* Worked as part of a team
+
+# Referee
+
+Peter MacCallum Cancer Centre
+
+Dr. Jason Li – BcompSc, BEng(hons), PhD,
+
+Core Manager & Senior Researcher of the Bioinformatics 
+Consulting Core Facility
+
+Contact information available upon request
+
+

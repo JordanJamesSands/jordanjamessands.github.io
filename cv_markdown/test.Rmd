@@ -1,0 +1,27 @@
+---
+date : 2018-May-26
+output:
+    pdf_document:
+        latex_engine: xelatex
+mainfont: LiberationSerif
+sansfont: LiberationSans
+monofont: LiberationMono
+title: "Testing Rmarkdown"
+---
+
+```{r,comment = NA}
+
+Gender <- gl(2,1000,labels = c("Men","Women"))
+SmokerM <- sample(c("Y","N"),1000,replace = T , prob = c(.3,.7))
+SmokerW <- sample(c("Y","N"),1000,replace = T , prob = c(.5,.5))
+Smoker <- c(SmokerM,SmokerW)
+
+mydata  <- data.frame(Gender,Smoker)
+table(mydata$Gender,mydata$Smoker)
+knitr::kable(table(mydata$Gender,mydata$Smoker))
+```
+
+This is a text in the body of the document.What font is this ? What is
+font for the output of table ? How can we change these 2 fonts ? What 
+other categories of items are there in an Rmarkdown which have different
+fonts ?  
